@@ -1,4 +1,5 @@
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "python", pyo3::pyclass(frozen, eq, hash, module = "rumen"))]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ViewMode {
     #[default]
     Normal,

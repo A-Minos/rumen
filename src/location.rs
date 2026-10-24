@@ -1,6 +1,10 @@
 /// A fumen wire coordinate, with (0, 0) at the top-left and garbage at y=23.
 /// I/O/S/Z anchors differ from their SRS rotation centers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(frozen, get_all, eq, hash, module = "rumen")
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Location {
     x: u8,
     y: u8,

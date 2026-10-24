@@ -25,6 +25,9 @@ mod page;
 mod quiz;
 mod view_mode;
 
+#[cfg(feature = "python")]
+mod python;
+
 pub use block::Block;
 pub use color_scheme::ColorScheme;
 pub use error::DecodeError;
@@ -36,6 +39,10 @@ pub use view_mode::ViewMode;
 use quiz::Quiz;
 use std::str::FromStr;
 
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(frozen, get_all, eq, module = "rumen")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Fumen {
     pub mode: ViewMode,

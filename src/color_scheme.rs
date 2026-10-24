@@ -1,4 +1,5 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "python", pyo3::pyclass(frozen, eq, hash, module = "rumen"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ColorScheme {
     GuideLine,
     Sega,

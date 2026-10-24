@@ -4,6 +4,10 @@ pub type Row = [Block; 10];
 /// Rows 0..23 are the playfield from top to bottom; row 23 is garbage.
 pub type Field = [Row; 24];
 
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(frozen, get_all, eq, module = "rumen")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Page {
     /// The field before this page's operation and events are applied.
@@ -19,6 +23,10 @@ impl Page {
     }
 }
 
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(frozen, get_all, eq, module = "rumen")
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Flag {
     pub mino: Block,
@@ -61,6 +69,7 @@ impl TryFrom<u32> for Flag {
     }
 }
 
+#[cfg_attr(feature = "python", pyo3::pymethods)]
 impl Flag {
     /// The four occupied cells in top-down field coordinates, or no active mino.
     /// Coordinates may extend outside the playfield; this is not a game-legality check.

@@ -1,5 +1,6 @@
 /// Fumen wire directions: down=0, right=1, up=2 (spawn), left=3.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "python", pyo3::pyclass(frozen, eq, hash, module = "rumen"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Facing {
     Down,
     Right,

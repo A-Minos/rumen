@@ -1,0 +1,2 @@
+# Maturin's implementation submodule is re-exported by the fully typed public rumen package.
+rumen\.rumen
