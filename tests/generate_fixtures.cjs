@@ -131,6 +131,7 @@ quiz('quiz direct placements', '#Q=[](I)TOSZJL', ['I', 'T', 'O']);
 quiz('quiz swaps held piece', '#Q=[T](I)OSZJL', ['T', 'I', 'O']);
 quiz('quiz stocks current piece', '#Q=[](I)TOSZJL', ['T', 'I', 'O']);
 quiz('quiz retains state on unrelated placement', '#Q=[](I)T', ['L', 'I']);
+quiz('quiz invalid next piece preserves hold and remaining queue', '#Q=[T](I)XI', ['I', 'T', 'I']);
 quiz('quiz does not advance when unlocked', '#Q=[](I)T', ['I', 'I'], { lock: false });
 quiz('quiz formatting without placement', '#Q= [I] () TOS', [null, 'I']);
 quiz('quiz empty queue and held piece', '#Q=[I]()', ['I']);

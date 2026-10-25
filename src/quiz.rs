@@ -1,5 +1,6 @@
 // Quiz transitions follow tetris-fumen 1.1.3 (MIT; see LICENSES/tetris-fumen.txt).
 use crate::Block;
+use std::borrow::Cow;
 
 #[derive(Clone)]
 pub(crate) enum Quiz {
@@ -39,17 +40,17 @@ impl Quiz {
         if !text.starts_with("#Q=") {
             return None;
         }
-        Self::from_text(text)
+        let text: String = text
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect();
+        Self::from_text(&text)
     }
 
     fn from_text(text: &str) -> Option<Self> {
         if !text.starts_with("#Q=") {
             return Some(Self::Text(text.to_owned()));
         }
-        let text: String = text
-            .chars()
-            .filter(|character| !character.is_whitespace())
-            .collect();
         let (hold, rest) = text.strip_prefix("#Q=[")?.split_once("](")?;
         let (current, remaining) = rest.split_once(')')?;
         Self::sequence(slot(hold)?, slot(current)?, remaining.to_owned())
@@ -75,15 +76,28 @@ impl Quiz {
                 hold,
                 current,
                 remaining,
-            } => format!(
-                "#Q=[{}]({}){remaining}",
-                hold.map(|piece| piece.to_string()).unwrap_or_default(),
-                current.map(|piece| piece.to_string()).unwrap_or_default(),
-            ),
+            } => {
+                let mut text = String::with_capacity(
+                    7 + usize::from(hold.is_some())
+                        + usize::from(current.is_some())
+                        + remaining.len(),
+                );
+                text.push_str("#Q=[");
+                if let Some(piece) = hold {
+                    text.push(*piece);
+                }
+                text.push_str("](");
+                if let Some(piece) = current {
+                    text.push(*piece);
+                }
+                text.push(')');
+                text.push_str(remaining);
+                text
+            }
         }
     }
 
-    fn next_if_end(&self) -> Option<Self> {
+    fn next_if_end(&self) -> Option<Cow<'_, Self>> {
         if let Self::Sequence {
             hold: None,
             current: None,
@@ -91,28 +105,29 @@ impl Quiz {
         } = self
         {
             if let Some(next) = remaining.strip_prefix(';') {
-                return Self::from_text(next);
+                return Self::from_text(next).map(Cow::Owned);
             }
         }
-        Some(self.clone())
+        Some(Cow::Borrowed(self))
     }
 
-    fn formatted(&self) -> Option<Self> {
+    fn formatted(&self) -> Option<Cow<'_, Self>> {
         let quiz = self.next_if_end()?;
-        match quiz {
+        match quiz.as_ref() {
             Self::Sequence {
                 current: None,
                 hold: Some(hold),
                 remaining,
-            } => Self::sequence(None, Some(hold), remaining),
+            } => Self::sequence(None, Some(*hold), remaining.clone()).map(Cow::Owned),
             Self::Sequence {
                 current: None,
                 hold: None,
                 remaining,
             } => match remaining.chars().next() {
-                None => Some(Self::Text(String::new())),
-                Some(';') => Self::from_text(&remaining[1..]),
-                Some(piece) => Self::sequence(None, Some(piece), after_next(&remaining).to_owned()),
+                None => Some(Cow::Owned(Self::Text(String::new()))),
+                Some(';') => Self::from_text(&remaining[1..]).map(Cow::Owned),
+                Some(piece) => Self::sequence(None, Some(piece), after_next(remaining).to_owned())
+                    .map(Cow::Owned),
             },
             _ => Some(quiz),
         }
@@ -132,7 +147,7 @@ impl Quiz {
             hold,
             current,
             remaining,
-        } = next
+        } = next.as_ref()
         else {
             return;
         };
@@ -150,25 +165,44 @@ impl Quiz {
             Block::Empty | Block::Garbage => None,
         };
         let following = remaining.chars().next().filter(|&piece| piece != ';');
-        let rest = after_next(&remaining);
+        let rest = after_next(remaining);
         let advanced = if used.is_some()
-            && (used == current || (hold.is_some() && current.is_none() && used == following))
+            && (used == *current || (hold.is_some() && current.is_none() && used == following))
         {
             if current.is_some() {
-                Self::sequence(hold, following, rest.to_owned())
+                Some((*hold, following, rest))
             } else {
-                rest.chars().next().and_then(|piece| {
-                    Self::sequence(hold, Some(piece), after_next(rest).to_owned())
-                })
+                rest.chars()
+                    .next()
+                    .map(|piece| (*hold, Some(piece), after_next(rest)))
             }
-        } else if used.is_some() && used == hold {
-            Self::sequence(current, following, rest.to_owned())
+        } else if used.is_some() && used == *hold {
+            Some((*current, following, rest))
         } else if used.is_some() && hold.is_none() && used == following {
-            Self::sequence(current, rest.chars().next(), after_next(rest).to_owned())
+            Some((*current, rest.chars().next(), after_next(rest)))
         } else {
             None
         };
-        if let Some(quiz) = advanced.or_else(|| self.formatted()) {
+        if let Some((new_hold, new_current, rest)) = advanced.filter(|(hold, current, _)| {
+            !hold.is_some_and(|piece| !is_piece(piece))
+                && !current.is_some_and(|piece| !is_piece(piece))
+        }) {
+            let consumed = remaining.len() - rest.len();
+            if let Cow::Owned(next) = next {
+                *self = next;
+            }
+            let Self::Sequence {
+                hold,
+                current,
+                remaining,
+            } = self
+            else {
+                unreachable!("the next Quiz state is a sequence");
+            };
+            *hold = new_hold;
+            *current = new_current;
+            remaining.drain(..consumed);
+        } else if let Some(Cow::Owned(quiz)) = self.formatted() {
             *self = quiz;
         }
     }

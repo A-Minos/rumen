@@ -39,10 +39,7 @@ pub use view_mode::ViewMode;
 use quiz::Quiz;
 use std::str::FromStr;
 
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(frozen, get_all, eq, module = "rumen")
-)]
+#[cfg_attr(feature = "python", pyo3::pyclass(frozen, eq, module = "rumen"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Fumen {
     pub mode: ViewMode,
@@ -113,7 +110,7 @@ impl Reader {
                 value /= 96;
             }
         }
-        coding::unicode::decode(&escaped).map_err(|_| DecodeError::InvalidUnicode)
+        coding::unicode::decode(escaped).map_err(|_| DecodeError::InvalidUnicode)
     }
 }
 
@@ -138,25 +135,31 @@ pub fn parse(input: &str) -> Result<Fumen, DecodeError> {
     if version != 115 {
         return Err(DecodeError::UnsupportedVersion(version));
     }
-    let digits = input[start..]
-        .char_indices()
-        .filter(|(_, character)| *character != '?' && !character.is_whitespace())
-        .map(|(offset, character)| {
-            coding::base64::decode(character).map_err(|_| DecodeError::InvalidCharacter {
+    let mut digits = Vec::with_capacity(input.len() - start);
+    let mut offset = start;
+    while let Some(&byte) = input.as_bytes().get(offset) {
+        if let Ok(digit) = coding::base64::decode(byte as char) {
+            digits.push(digit);
+            offset += 1;
+            continue;
+        }
+        let character = input[offset..].chars().next().unwrap();
+        if character != '?' && !character.is_whitespace() {
+            return Err(DecodeError::InvalidCharacter {
                 character,
-                byte_offset: start + offset,
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+                byte_offset: offset,
+            });
+        }
+        offset += character.len_utf8();
+    }
     let mut reader = Reader {
         digits,
         position: 0,
     };
     let mut field = page::FieldState::new();
     let mut repeat = 0;
-    let mut last_comment = String::new();
     let mut quiz: Option<Quiz> = None;
-    let mut pages = Vec::new();
+    let mut pages: Vec<Page> = Vec::new();
 
     while !reader.is_empty() {
         if repeat > 0 {
@@ -170,10 +173,8 @@ pub fn parse(input: &str) -> Result<Fumen, DecodeError> {
                     return Err(DecodeError::InvalidFieldRun { index, count });
                 }
                 let delta = (run / 240) as i16 - 8;
-                for _ in 0..count {
-                    field.add(index, delta)?;
-                    index += 1;
-                }
+                field.add_run(index, count, delta)?;
+                index += count;
                 if run == 2159 {
                     repeat = reader.read(1)?;
                 }
@@ -182,13 +183,15 @@ pub fn parse(input: &str) -> Result<Fumen, DecodeError> {
 
         let flag = Flag::try_from(reader.read(3)?).map_err(DecodeError::InvalidAction)?;
         let notes = if flag.note {
-            last_comment = reader.comment()?;
-            quiz = Quiz::parse(&last_comment);
-            last_comment.clone()
+            let notes = reader.comment()?;
+            quiz = Quiz::parse(&notes);
+            notes
         } else {
             match &quiz {
                 Some(quiz) => quiz.comment(),
-                None => last_comment.clone(),
+                None => pages
+                    .last()
+                    .map_or_else(String::new, |page| page.notes.clone()),
             }
         };
         pages.push(Page::new(field.snapshot()?, flag, notes));

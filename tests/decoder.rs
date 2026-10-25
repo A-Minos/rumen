@@ -113,7 +113,9 @@ fn accepts_viewer_urls_separators_and_all_view_modes() {
         ('d', ViewMode::List),
         ('D', ViewMode::MiniList),
     ] {
-        let input = format!("https://fumen.zui.jp/?{prefix}115@ghE8?JeAgH\n vhAAAA&unused=1");
+        let input = format!(
+            "https://fumen.zui.jp/?{prefix}115@ghE8?JeAgH\n \u{b}\u{85}\u{2003}vhAAAA&unused=1"
+        );
         let fumen: Fumen = input.parse().unwrap();
         assert_eq!(fumen.mode, mode);
         assert_eq!(fumen.version, 115);
@@ -140,6 +142,14 @@ fn rejects_invalid_headers_and_unsupported_versions() {
         Err(DecodeError::InvalidCharacter {
             character: '*',
             byte_offset: 8
+        })
+    );
+    // Character validation still precedes parsing, and offsets count UTF-8 bytes.
+    assert_eq!(
+        rumen::parse("v115@\u{2003}AAé"),
+        Err(DecodeError::InvalidCharacter {
+            character: 'é',
+            byte_offset: 10
         })
     );
 }
@@ -194,6 +204,28 @@ fn explicit_empty_comment_is_distinct_from_no_comment_update() {
     assert!(empty.pages[0].flag.note);
     assert_eq!(absent.pages[0].notes, "");
     assert_eq!(empty.pages[0].notes, "");
+
+    // tetris-fumen@1.1.3: quiz -> ordinary -> empty -> quiz, each with inheritance.
+    let reset = rumen::parse(
+        "v115@vhIAglAAtVAFLDmClcJSAVDEHBEooRBJoAVB0AAAAA?AeAAtIAP8y4DuCSvEAAeAAtAAAAeAAtVAFLDmClcJSAVDEH?BEooRBUoAVBpAAAAAAe",
+    )
+    .unwrap();
+    let expected = [
+        ("", false),
+        ("#Q=[](I)T", true),
+        ("#Q=[](I)T", false),
+        ("ordinary", true),
+        ("ordinary", false),
+        ("", true),
+        ("", false),
+        ("#Q=[](T)I", true),
+        ("#Q=[](T)I", false),
+    ];
+    assert_eq!(reset.pages.len(), expected.len());
+    for (page, (notes, updated)) in reset.pages.iter().zip(expected) {
+        assert_eq!(page.notes, notes);
+        assert_eq!(page.flag.note, updated);
+    }
 }
 
 #[test]
@@ -212,8 +244,31 @@ fn unrepresentable_comment_text_returns_an_explicit_error() {
 #[test]
 fn undefined_field_cells_are_reported_not_invented() {
     // The reference exposes NaN here after an extended-array line clear.
-    assert_eq!(
-        rumen::parse("v115@D8KeE8bhJiHvhAAAA"),
-        Err(DecodeError::UndefinedCell { index: 0 })
-    );
+    for input in [
+        "v115@D8KeE8bhJiHvhAAAA",
+        // An unchanged field run must detect undefined cells before reading its
+        // repeat counter or the following (truncated) action.
+        "v115@D8KeE8bhJiHvh",
+        "v115@D8KeE8bhJiHvhA",
+    ] {
+        assert_eq!(
+            rumen::parse(input),
+            Err(DecodeError::UndefinedCell { index: 0 }),
+            "{input}"
+        );
+    }
+}
+
+#[test]
+fn nonadjacent_line_clears_preserve_row_order_and_garbage() {
+    // tetris-fumen@1.1.3: full rows at bottom-up y=0 and y=2, with
+    // distinct markers below, between, and above them (including the top row).
+    let fumen = rumen::parse("v115@g02gwwOeJ8whHeglJ8IeQ4AgHvhAAAA").unwrap();
+    let mut expected = [[Block::Empty; 10]; 24];
+    expected[2][0] = Block::J;
+    expected[20][4] = Block::T;
+    expected[22][0] = Block::I;
+    expected[22][9] = Block::L;
+    expected[23][9] = Block::S;
+    assert_eq!(fumen.pages[1].field, expected);
 }

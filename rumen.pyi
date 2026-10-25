@@ -1,4 +1,5 @@
-from typing import ClassVar, final
+from collections.abc import Iterator
+from typing import ClassVar, SupportsIndex, final
 
 __all__ = [
     "Block",
@@ -94,24 +95,26 @@ class Flag:
 @final
 class Page:
     @property
-    def field(self) -> list[list[Block]]:
-        """A copy of the 24x10 pre-action field; row 23 is garbage."""
-    @property
     def flag(self) -> Flag: ...
     @property
     def notes(self) -> str:
         """The resolved comment, including inheritance and quiz progression."""
+    def to_matrix(self) -> list[list[int]]:
+        """Copy the 24x10 field into block codes 0..8, with garbage at row 23."""
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class Fumen:
+    def __len__(self) -> int: ...
+    def __iter__(self) -> Iterator[Page]: ...
+    def __getitem__(self, index: SupportsIndex, /) -> Page:
+        """Copy one page; negative indices count from the end."""
+    def to_matrices(self) -> list[list[list[int]]]:
+        """Copy all fields into page/row/column integer lists, without per-cell calls."""
     @property
     def mode(self) -> ViewMode: ...
     @property
     def version(self) -> int: ...
-    @property
-    def pages(self) -> list[Page]:
-        """A copy of the decoded page list."""
     def __eq__(self, other: object, /) -> bool: ...
 
 def parse(input: str) -> Fumen:

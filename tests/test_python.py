@@ -16,17 +16,7 @@ class PythonBindingsTest(unittest.TestCase):
         cls.corpus = json.loads(fixture.read_text(encoding="utf-8"))
 
     def test_reference_corpus_through_python_objects(self):
-        symbols = {
-            rumen.Block.Empty: "_",
-            rumen.Block.I: "I",
-            rumen.Block.L: "L",
-            rumen.Block.O: "O",
-            rumen.Block.Z: "Z",
-            rumen.Block.T: "T",
-            rumen.Block.J: "J",
-            rumen.Block.S: "S",
-            rumen.Block.Garbage: "X",
-        }
+        codes = {symbol: value for value, symbol in enumerate("_ILOZTJSX")}
         self.assertTrue(self.corpus["cases"])
         for case in self.corpus["cases"]:
             with self.subTest(case=case["name"]):
@@ -34,18 +24,29 @@ class PythonBindingsTest(unittest.TestCase):
                 self.assertIsInstance(fumen, rumen.Fumen)
                 self.assertEqual(fumen.version, 115)
                 self.assertEqual(fumen.mode, rumen.ViewMode.Normal)
-                pages = fumen.pages
-                self.assertIsInstance(pages, list)
-                self.assertEqual(len(pages), len(case["pages"]))
+                self.assertEqual(len(fumen), len(case["pages"]))
+                pages = list(fumen)
+                self.assertEqual(len(pages), len(fumen))
+                matrices = fumen.to_matrices()
+                self.assertIsInstance(matrices, list)
+                self.assertEqual(len(matrices), len(pages))
                 for index, (page, expected) in enumerate(zip(pages, case["pages"])):
                     with self.subTest(page=index):
                         self.assertIsInstance(page, rumen.Page)
-                        field = page.field
-                        self.assertIsInstance(field, list)
-                        self.assertTrue(all(isinstance(row, list) for row in field))
-                        self.assertEqual(
-                            ["".join(symbols[cell] for cell in row) for row in field],
-                            expected["field"],
+                        expected_matrix = [
+                            [codes[cell] for cell in row] for row in expected["field"]
+                        ]
+                        self.assertEqual(matrices[index], expected_matrix)
+                        self.assertEqual(fumen[index].to_matrix(), expected_matrix)
+                        self.assertTrue(
+                            all(isinstance(row, list) for row in matrices[index])
+                        )
+                        self.assertTrue(
+                            all(
+                                type(cell) is int
+                                for row in matrices[index]
+                                for cell in row
+                            )
                         )
                         self.assertEqual(page.notes, expected["comment"])
                         flag = page.flag
@@ -84,21 +85,69 @@ class PythonBindingsTest(unittest.TestCase):
                                 sorted(map(tuple, operation["positions"])),
                             )
 
-    def test_snapshot_ownership_equality_and_enum_keys(self):
+    def test_indexed_pages_and_iteration(self):
+        case = next(
+            case
+            for case in self.corpus["cases"]
+            if case["name"] == "upstream ordinary comment inheritance"
+        )
+        fumen = rumen.parse(case["fumen"])
+        expected = [page["comment"] for page in case["pages"]]
+        self.assertEqual(len(fumen), len(expected))
+        for index in range(-len(fumen), len(fumen)):
+            self.assertEqual(fumen[index].notes, expected[index])
+        self.assertEqual([page.notes for page in fumen], expected)
+        iterator = fumen.__iter__()
+        self.assertIs(iter(iterator), iterator)
+        self.assertEqual([page.notes for page in iterator], expected)
+        self.assertEqual(
+            [page.notes for page in iter(rumen.parse(case["fumen"]))], expected
+        )
+
+        class Index:
+            def __index__(self):
+                return 1
+
+        self.assertEqual(fumen[Index()].notes, expected[1])
+        for index in (len(fumen), -len(fumen) - 1):
+            with self.subTest(index=index), self.assertRaises(IndexError):
+                fumen[index]
+        with self.assertRaises(TypeError):
+            fumen[0.5]
+
+        empty = rumen.parse("v115@")
+        self.assertEqual(len(empty), 0)
+        self.assertEqual(list(empty), [])
+        self.assertEqual(empty.to_matrices(), [])
+        for index in (0, -1):
+            with self.subTest(index=index), self.assertRaises(IndexError):
+                empty[index]
+
+    def test_numeric_matrices_are_independent_copies(self):
+        fumen = rumen.parse("v115@ghE8JeAgHvhAAAA")
+        matrices = fumen.to_matrices()
+        matrices[0][22][5] = 0
+        matrices[0][0][0] = 8
+        self.assertEqual(matrices[1][22][5], 8)
+        self.assertEqual(matrices[0][1][0], 0)
+        self.assertEqual(fumen[0].to_matrix()[22][5], 8)
+        page = fumen[0]
+        matrix = page.to_matrix()
+        matrix[0][0] = 8
+        self.assertEqual(page.to_matrix()[0][0], 0)
+
+    def test_read_only_models_and_enum_keys(self):
         code = "v115@ghE8JeAgHvhAAAA"
         fumen = rumen.parse(code)
         self.assertEqual(fumen, rumen.parse(code))
         self.assertNotEqual(fumen, rumen.parse("v115@"))
-        page = fumen.pages[0]
+        page = fumen[0]
         self.assertEqual(
-            Counter(page.field[22]), {rumen.Block.Empty: 5, rumen.Block.Garbage: 5}
+            Counter(page.flag.mino for page in fumen), {rumen.Block.Empty: 2}
         )
-        pages = fumen.pages
-        pages.clear()
-        self.assertEqual(len(fumen.pages), 2)
-        field = page.field
-        field[22][5] = rumen.Block.Empty
-        self.assertEqual(page.field[22][5], rumen.Block.Garbage)
+        self.assertEqual(int(rumen.Block.Garbage), 8)
+        self.assertFalse(hasattr(fumen, "pages"))
+        self.assertFalse(hasattr(page, "field"))
         for instance, name, value in [
             (fumen, "version", 110),
             (page, "notes", "changed"),
@@ -119,8 +168,8 @@ class PythonBindingsTest(unittest.TestCase):
                     input=f"https://fumen.zui.jp/?{prefix}115@ghE8?JeAgH&unused=1"
                 )
                 self.assertEqual(decoded.mode, mode)
-        self.assertIs(rumen.parse("v115@vhAAgWAA").pages[0].flag.note, True)
-        self.assertIs(rumen.parse("v115@vhAAgH").pages[0].flag.note, False)
+        self.assertIs(rumen.parse("v115@vhAAgWAA")[0].flag.note, True)
+        self.assertIs(rumen.parse("v115@vhAAgH")[0].flag.note, False)
 
     def test_decoder_failures_are_value_errors_with_original_messages(self):
         cases = [
