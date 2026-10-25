@@ -7,7 +7,7 @@ name = "rumen"
 dynamic = ["version"]
 description = "Fumen v115 decoder backed by Rust"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE", "LICENSES/*"]
 

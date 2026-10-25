@@ -14,7 +14,7 @@ crate-type = ["rlib", "cdylib"]
 python = ["dep:pyo3"]
 
 [dependencies]
-pyo3 = { version = "0.30.1", optional = true, features = ["abi3-py39"] }
+pyo3 = { version = "0.30.1", optional = true, features = ["abi3-py311"] }
 thiserror = "2.0.21"
 
 [dev-dependencies]

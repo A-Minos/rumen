@@ -10,7 +10,7 @@
 
 ## Python：几行就够
 
-需要 **Python 3.9+、Rust 工具链和 uv**。以下从源码安装，在仓库根目录执行：
+需要 **Python 3.11+、Rust 工具链和 uv**。以下从源码安装，在仓库根目录执行：
 
 ```sh
 uv venv
@@ -85,5 +85,13 @@ cargo clippy --all-targets --all-features --locked -- -D warnings
 # 先按上文安装 Python 包；以下为 Linux / macOS 路径
 .venv/bin/python -B -m unittest discover -s tests -p test_python.py
 ```
+
+## 发布
+
+[Release 工作流](https://github.com/A-Minos/rumen/actions/workflows/Release.yml) 构建 Linux x86_64 / aarch64、macOS x86_64 / arm64、Windows x86_64 的 ABI3 wheel，分别在 CPython 3.11–3.15 上测试，并验证源码包。
+
+推送代码、标签或普通手动运行只做检查。发布 GitHub Release 时，标签须为 `v<Cargo.toml 中的版本>`；全部检查通过后，crates.io 与 PyPI 使用 OIDC 发布同一版本。两端 Trusted Publisher 均绑定 `A-Minos/rumen` 和 `Release.yml`，不设置 Environment 限制。
+
+crates.io 首个版本需在本地 `cargo publish --locked`，之后才能配置 Trusted Publisher。首发时推送对应版本标签，不创建 GitHub Release；手动运行工作流，选择该标签并勾选 `publish_pypi`，只补发 PyPI。
 
 项目采用 [MIT](LICENSE) 许可。协议行为参考 [tetris-fumen](https://github.com/knewjade/tetris-fumen)，相关第三方许可见 [LICENSES/tetris-fumen.txt](LICENSES/tetris-fumen.txt)。
