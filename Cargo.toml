@@ -2,7 +2,10 @@
 name = "rumen"
 version = "0.1.0"
 edition = "2021"
-include = ["src/**/*.rs", "tests/**/*", "LICENSES/*", "Cargo.toml", "Cargo.lock", "pyproject.toml", "rumen.pyi", "/README.md"]
+description = "Fumen v115 decoder with optional Python bindings"
+license = "MIT"
+repository = "https://github.com/A-Minos/rumen"
+include = ["src/**/*.rs", "tests/**/*", "LICENSES/*", "Cargo.toml", "Cargo.lock", "pyproject.toml", "rumen.pyi", "/README.md", "/LICENSE"]
 
 [lib]
 crate-type = ["rlib", "cdylib"]

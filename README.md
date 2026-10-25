@@ -86,4 +86,4 @@ cargo clippy --all-targets --all-features --locked -- -D warnings
 .venv/bin/python -B -m unittest discover -s tests -p test_python.py
 ```
 
-协议行为参考 [tetris-fumen](https://github.com/knewjade/tetris-fumen)，相关许可见 [LICENSES/tetris-fumen.txt](LICENSES/tetris-fumen.txt)。
+项目采用 [MIT](LICENSE) 许可。协议行为参考 [tetris-fumen](https://github.com/knewjade/tetris-fumen)，相关第三方许可见 [LICENSES/tetris-fumen.txt](LICENSES/tetris-fumen.txt)。
