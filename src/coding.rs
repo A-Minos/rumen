@@ -1,3 +1,3 @@
-pub mod base64;
-pub mod base96;
-pub mod unicode;
+pub(crate) mod base64;
+pub(crate) mod base96;
+pub(crate) mod unicode;

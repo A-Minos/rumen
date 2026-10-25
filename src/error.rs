@@ -1,91 +1,26 @@
-use std::fmt;
+use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum DecodeError {
+    #[error("expected a v115@, m115@, d115@ or D115@ fumen")]
     InvalidHeader,
+    #[error("unsupported fumen version {0}; only v115 is supported")]
     UnsupportedVersion(u32),
-    InvalidCharacter {
-        character: char,
-        byte_offset: usize,
-    },
+    #[error("invalid base64 character {character:?} at byte {byte_offset}")]
+    InvalidCharacter { character: char, byte_offset: usize },
     /// `offset` counts base64 symbols in the payload, excluding separators.
-    UnexpectedEnd {
-        offset: usize,
-        needed: usize,
-    },
-    InvalidFieldRun {
-        index: usize,
-        count: usize,
-    },
-    InvalidBlock {
-        index: usize,
-        value: i16,
-    },
+    #[error("truncated fumen: expected {needed} symbols at payload offset {offset}")]
+    UnexpectedEnd { offset: usize, needed: usize },
+    #[error("field run of {count} cells at index {index} exceeds 240 cells")]
+    InvalidFieldRun { index: usize, count: usize },
+    #[error("field delta produces invalid block {value} at index {index}")]
+    InvalidBlock { index: usize, value: i16 },
+    #[error("comment digit {0} is not in the printable ASCII alphabet")]
     InvalidCommentDigit(u8),
+    #[error("invalid action: {0}")]
     InvalidAction(&'static str),
-    UndefinedCell {
-        index: usize,
-    },
+    #[error("field cell {index} is undefined after an off-board placement")]
+    UndefinedCell { index: usize },
+    #[error("comment contains an unpaired UTF-16 surrogate")]
     InvalidUnicode,
 }
-
-impl fmt::Display for DecodeError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidHeader => {
-                write!(formatter, "expected a v115@, m115@, d115@ or D115@ fumen")
-            }
-            Self::UnsupportedVersion(version) => {
-                write!(
-                    formatter,
-                    "unsupported fumen version {version}; only v115 is supported"
-                )
-            }
-            Self::InvalidCharacter {
-                character,
-                byte_offset,
-            } => {
-                write!(
-                    formatter,
-                    "invalid base64 character {character:?} at byte {byte_offset}"
-                )
-            }
-            Self::UnexpectedEnd { offset, needed } => {
-                write!(
-                    formatter,
-                    "truncated fumen: expected {needed} symbols at payload offset {offset}"
-                )
-            }
-            Self::InvalidFieldRun { index, count } => {
-                write!(
-                    formatter,
-                    "field run of {count} cells at index {index} exceeds 240 cells"
-                )
-            }
-            Self::InvalidBlock { index, value } => {
-                write!(
-                    formatter,
-                    "field delta produces invalid block {value} at index {index}"
-                )
-            }
-            Self::InvalidCommentDigit(digit) => {
-                write!(
-                    formatter,
-                    "comment digit {digit} is not in the printable ASCII alphabet"
-                )
-            }
-            Self::InvalidAction(reason) => write!(formatter, "invalid action: {reason}"),
-            Self::UndefinedCell { index } => {
-                write!(
-                    formatter,
-                    "field cell {index} is undefined after an off-board placement"
-                )
-            }
-            Self::InvalidUnicode => {
-                write!(formatter, "comment contains an unpaired UTF-16 surrogate")
-            }
-        }
-    }
-}
-
-impl std::error::Error for DecodeError {}

@@ -11,13 +11,14 @@ pub struct Location {
 }
 
 impl Location {
-    pub fn create(x: u8, y: u8) -> Result<Self, &'static str> {
+    pub fn new(x: u8, y: u8) -> Result<Self, &'static str> {
         if x < 10 && y < 24 {
             Ok(Location { x, y })
         } else {
             Err("Invalid Location")
         }
     }
+
     pub fn x(&self) -> u8 {
         self.x
     }
@@ -38,12 +39,5 @@ impl TryFrom<u8> for Location {
         } else {
             Err("Invalid Location")
         }
-    }
-}
-
-impl TryFrom<[u8; 2]> for Location {
-    type Error = &'static str;
-    fn try_from([x, y]: [u8; 2]) -> Result<Self, Self::Error> {
-        Location::create(x, y)
     }
 }
