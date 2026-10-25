@@ -6,6 +6,7 @@ build-backend = "maturin"
 name = "rumen"
 dynamic = ["version"]
 description = "Fumen v115 decoder backed by Rust"
+readme = "README.md"
 requires-python = ">=3.9"
 license-files = ["LICENSES/*"]
 

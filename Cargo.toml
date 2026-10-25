@@ -2,7 +2,7 @@
 name = "rumen"
 version = "0.1.0"
 edition = "2021"
-include = ["src/**/*.rs", "tests/**/*", "LICENSES/*", "Cargo.toml", "Cargo.lock", "pyproject.toml", "rumen.pyi"]
+include = ["src/**/*.rs", "tests/**/*", "LICENSES/*", "Cargo.toml", "Cargo.lock", "pyproject.toml", "rumen.pyi", "/README.md"]
 
 [lib]
 crate-type = ["rlib", "cdylib"]
